@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   Boxes,
@@ -23,28 +23,41 @@ type IconProps = React.ComponentProps<typeof LayoutDashboard>;
 
 export default function ClientSidebar({ orgId }: { orgId: string }) {
   const pathname = usePathname();
+  const storageKey = useMemo(() => `sidebar:${orgId}:servicesOpen`, [orgId]);
+
+  const [svcOpen, setSvcOpen] = useState<boolean>(false);
+
+  // Load persisted state on mount, and force-open if currently in /services/*
+  useEffect(() => {
+    // 1) load saved state
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw !== null) setSvcOpen(raw === "1");
+    } catch {}
+    // 2) if on a services route, ensure it’s open (and persist)
+    if (pathname.startsWith(`/${orgId}/services/`)) {
+      setSvcOpen(true);
+      try { localStorage.setItem(storageKey, "1"); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]); // run once per org
+
+  // Persist whenever the toggle changes
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, svcOpen ? "1" : "0"); } catch {}
+  }, [storageKey, svcOpen]);
 
   const L = (p: string, label: string, Icon: React.ComponentType<IconProps>) => (
-    <Link
-      className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted"
-      href={`/${orgId}${p}`}
-    >
+    <Link className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted" href={`/${orgId}${p}`}>
       <Icon className="h-4 w-4" aria-hidden="true" />
       <span>{label}</span>
     </Link>
   );
 
-  // Open Services if the current route is inside /services/*
-  const [svcOpen, setSvcOpen] = useState<boolean>(false);
-  useEffect(() => {
-    setSvcOpen(pathname.startsWith(`/${orgId}/services/`));
-  }, [pathname, orgId]);
-
   return (
     <nav className="flex h-full flex-col space-y-2 text-sm">
       <div className="mb-3">
         <div className="text-center text-xl font-semibold">Xilbee AI</div>
-        {/* Shows only for OWNER; hidden for clients */}
         <OrgSwitcher />
       </div>
 
@@ -52,7 +65,7 @@ export default function ClientSidebar({ orgId }: { orgId: string }) {
       {L("/dashboard", "Dashboard", LayoutDashboard)}
       {L("/uploads", "Uploads", Upload)}
 
-      {/* Collapsible Services */}
+      {/* Collapsible Services (state persisted per org) */}
       <div className="rounded">
         <button
           type="button"

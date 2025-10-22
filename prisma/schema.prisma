@@ -1,0 +1,95 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  OWNER
+  CLIENT_ADMIN
+  CLIENT_USER
+}
+
+enum ModuleKey {
+  RECEPTIONIST
+  AFTER_HOURS
+  REVIEW_MANAGER
+  REACTIVATION
+  SPEED_TO_LEAD
+  CART_RECOVERY
+}
+
+model User {
+  id          String          @id @default(cuid())
+  email       String          @unique
+  name        String?
+  memberships OrgMembership[]
+  sessions    Session[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Organization {
+  id           String           @id @default(cuid())
+  name         String
+  slug         String           @unique
+  sheetId      String
+  sheetGidMap  Json             @default("{}")
+  moduleGrants OrgModuleGrant[]
+  memberships  OrgMembership[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model OrgMembership {
+  userId String
+  orgId  String
+  role   Role
+  user   User         @relation(fields: [userId], references: [id])
+  org    Organization @relation(fields: [orgId], references: [id])
+
+  @@id([userId, orgId])
+  @@index([orgId])
+}
+
+model OrgModuleGrant {
+  id      String       @id @default(cuid())
+  orgId   String
+  module  ModuleKey
+  enabled Boolean      @default(true)
+  org     Organization @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, module])
+}
+
+model Session {
+  id                String   @id
+  userId            String
+  impersonatedOrgId String?
+  expiresAt         DateTime
+  user              User     @relation(fields: [userId], references: [id])
+}
+
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  codeHash   String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String?
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  ip         String?
+  uaHash     String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}

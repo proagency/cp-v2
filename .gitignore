@@ -85,7 +85,6 @@ prisma/generated/
 # Misc
 # -------------------------
 # Local uploads (if you ever stage files; your app uses webhooks, so likely unused)
-uploads/
 tmp/
 temp/
 
